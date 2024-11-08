@@ -8,7 +8,7 @@ export async function createShortUrl(req, res) {
   const { fullUrl } = req.body;
   console.log(`Creating short URL for ${fullUrl}`);
   const shortCode = generate();
-  const shortUrl = `${process.env.SUPABASE_URL}/s/${shortCode}`;
+  const shortUrl = `${process.env.BACKEND_URL}/s/${shortCode}`;
 
   try {
     // Insert URL into the Supabase database

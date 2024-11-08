@@ -44,7 +44,7 @@ export default {
       }
 
       try {
-        const response = await axios.post('http://localhost:5000/shorten', {
+        const response = await axios.post('https://short-url-backend-nu.vercel.app/shorten', {
           fullUrl: this.urlInput
         });
 
