@@ -1,29 +1,23 @@
 // controllers/urlController.js -> 
-import db from '../db.js';
+import supabase from '../db.js';
 import { generate } from 'shortid';
 import { toDataURL } from 'qrcode';
 
 // Create short URL and QR Code
-// async await = syncronuous 
-// 1 2 3 4 5 6 7 8 9 
-// 1 3 5 7 2 8 3 
-// req == FULL URL
-// SUSSESS (200) => short url
-// FAIL (500) => ERROR
 export async function createShortUrl(req, res) {
-  // Req == object 
-  // FULL URL -> req body
   const { fullUrl } = req.body;
-  const shortCode = generate(); // Random string
-  const shortUrl = `${req.protocol}://${req.get('host')}/s/${shortCode}`; // req.protoco = [http / https] | req.get('host') == [ip / domain] localhost
-  // http://localhost/s/efwedsfew
+  console.log(`Creating short URL for ${fullUrl}`);
+  const shortCode = generate();
+  const shortUrl = `${process.env.SUPABASE_URL}/s/${shortCode}`;
 
   try {
-    // Insert URL into the database
-    const result = await db.query(
-      'INSERT INTO urls (full_url, short_code) VALUES ($1, $2) RETURNING *',
-      [fullUrl, shortCode]
-    );
+    // Insert URL into the Supabase database
+    const { data, error } = await supabase
+      .from('urls')
+      .insert([{ full_url: fullUrl, short_code: shortCode }])
+      .select();
+
+    if (error) throw error;
 
     // Generate QR code in Base64 format
     const qrCodeBase64 = await toDataURL(shortUrl);
@@ -32,7 +26,7 @@ export async function createShortUrl(req, res) {
     res.status(201).json({
       shortUrl,
       qrCode: qrCodeBase64,
-      data: result.rows[0]
+      data: data[0]
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -40,24 +34,32 @@ export async function createShortUrl(req, res) {
 }
 
 // Redirect short URL to original URL
-// http://localhost/s/efwedsfew -> www.google.com
-
 export async function redirectUrl(req, res) {
   const { code } = req.params;
   console.log(`Redirecting to ${code}`);
 
   try {
-    // Full url in database | select all from table url with short_code == req.params  
-    const result = await db.query('SELECT * FROM urls WHERE short_code = $1', [code]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'URL not found' });
+    // Fetch URL from Supabase based on the short code
+    const { data: urlData, error } = await supabase
+      .from('urls')
+      .select('*')
+      .eq('short_code', code)
+      .single();
 
-    const url = result.rows[0].full_url;
+    if (error || !urlData) return res.status(404).json({ error: 'URL not found' });
+
+    const url = urlData.full_url;
 
     // Update click count in `urls` table
-    await db.query('UPDATE urls SET click_count = click_count + 1 WHERE id = $1', [result.rows[0].id]);
+    await supabase
+      .from('urls')
+      .update({ click_count: urlData.click_count + 1 })
+      .eq('id', urlData.id);
 
     // Insert click event into `clicks` table
-    await db.query('INSERT INTO clicks (url_id, ip_address) VALUES ($1, $2)', [result.rows[0].id, req.ip]);
+    await supabase
+      .from('clicks')
+      .insert([{ url_id: urlData.id, ip_address: req.ip }]);
 
     // Redirect to the original URL, ensuring it includes protocol
     const targetUrl = url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
@@ -85,11 +87,24 @@ export async function getStats(req, res) {
   const { code } = req.params;
 
   try {
-    const urlResult = await db.query('SELECT * FROM urls WHERE short_code = $1', [code]);
-    if (urlResult.rows.length === 0) return res.status(404).json({ error: 'URL not found' });
+    // Fetch URL data from Supabase based on the short code
+    const { data: urlData, error: urlError } = await supabase
+      .from('urls')
+      .select('*')
+      .eq('short_code', code)
+      .single();
 
-    const clicksResult = await db.query('SELECT * FROM clicks WHERE url_id = $1', [urlResult.rows[0].id]);
-    res.status(200).json({ totalClicks: clicksResult.rowCount, clicks: clicksResult.rows });
+    if (urlError || !urlData) return res.status(404).json({ error: 'URL not found' });
+
+    // Fetch clicks related to this URL
+    const { data: clicksData, error: clicksError } = await supabase
+      .from('clicks')
+      .select('*')
+      .eq('url_id', urlData.id);
+
+    if (clicksError) throw clicksError;
+
+    res.status(200).json({ totalClicks: clicksData.length, clicks: clicksData });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

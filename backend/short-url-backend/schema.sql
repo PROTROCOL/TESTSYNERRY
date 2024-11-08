@@ -13,6 +13,7 @@ CREATE TABLE urls (
     click_count INTEGER DEFAULT 0
 );
 
+
 -- Create `clicks` table to log click events on shortened URLs
 CREATE TABLE clicks (
     id SERIAL PRIMARY KEY,

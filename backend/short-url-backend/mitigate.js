@@ -28,5 +28,5 @@ async function runMigration() {
 runMigration();
 
 
-statements[0] = DROP TABLE IF EXISTS clicks
-statements[1] =
+// statements[0] = DROP TABLE IF EXISTS clicks
+// statements[1] =

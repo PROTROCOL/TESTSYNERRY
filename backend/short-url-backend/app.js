@@ -11,6 +11,10 @@ const app = express();
 // Enable CORS for all routes
 app.use(cors());
 
+app.get('/',(req , res) =>
+{
+    res.send('Hello server')
+})
 // Middleware to parse JSON
 app.use(express.json());
 

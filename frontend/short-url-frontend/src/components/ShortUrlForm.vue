@@ -4,12 +4,7 @@
     <h2>Generate Short URL and QR Code</h2>
 
     <!-- Input Field -->
-    <input
-      v-model="urlInput"
-      type="text"
-      placeholder="Enter a URL to shorten"
-      class="url-input"
-    />
+    <input v-model="urlInput" type="text" placeholder="Enter a URL to shorten" class="url-input" />
 
     <!-- Button -->
     <button @click="generateShortUrl" class="submit-button">Generate</button>
